@@ -1,0 +1,57 @@
+contract_field,level,internal_field,database_table,normalization,storage_status,ml_role,notes
+project_name,REQUIRED,project_name,projects,trim collapse whitespace case-insensitive identity,maps to existing column,not a model feature,Competition and copilot display. NOT NULL.
+developer,REQUIRED,developer,projects,trim casefold strip legal suffix only via explicit alias,maps to existing column,do not one-hot into price model,Training file uses developer as a group label only.
+location_text,REQUIRED,location,projects,trim,maps to existing column,not a model feature,Free-text locality. Not the canonical corridor.
+city,REQUIRED,city_name,cities,Bengaluru Bangalore Bengaluru Urban only,match existing row do not insert,not a model feature,Other cities are out of scope.
+micro_market,REQUIRED,micromarket_name,projects,explicit alias table to 25 canonical names,maps to existing column,price coverage and zone lookup not a numeric feature,Unrecognized names must not be stored raw because agents use LIKE.
+micro_market,REQUIRED,micromarket_name,micro_markets,same alias table,match existing row,demand inference lookup key,Do not insert a 26th corridor.
+micromarket_business_id,REQUIRED if provider sends MM id,micromarket_id,micro_markets,must equal MM01-MM25,match only,not a model feature,Provider response format required.
+micro_market_surrogate,REQUIRED after name match,micro_market_id,projects,resolve micro_markets.id,maps to existing column,not a model feature,No foreign key is declared.
+property_type,REQUIRED,property_type,projects,Residential Villa Plot dictionary,maps to existing column,argument only not in v2 feature list,Do not apply column default Residential when omitted.
+property_segment,REQUIRED,property_segment,projects,Luxury Premium Mid,maps to existing column,existing one-hot is_luxury is_premium is_mid,Do not apply column default Mid when omitted. Do not copy segment_bias.
+bhk,REQUIRED,bhk_configurations,projects,1BHK 2BHK 3BHK 4BHK 5BHK or an explicit range,maps to existing column,existing BHK float parse for a future training row,Do not collapse a range to one end. Half sizes stay half.
+launched_or_planned_units,REQUIRED,launched_units,projects,integer,maps to existing column,existing units feature for a future training set only,Live price inference still takes units from the user proposal. Do not default missing to 0.
+sale_price_per_sqft,REQUIRED,price_per_sqft,projects,INR per sq.ft only,maps to existing column,LABEL ONLY do not use as a live feature,Reject when currency or area unit is unknown. Never store rent here.
+price_type,REQUIRED,,"",keep provider enumeration,SCHEMA GAP — requires Phase 3/4 decision,gate before any training label,Provider response format required. Training CSV uses new_launch.
+price_unit,REQUIRED,,"",record original unit,SCHEMA GAP — requires Phase 3/4 decision,not a feature,Convert sq.m to sq.ft only when unit is explicit.
+currency,REQUIRED,,"",INR required,SCHEMA GAP — requires Phase 3/4 decision,not a feature,No FX rule exists.
+project_status,REQUIRED,,"",ongoing proposed newly_launched completed unknown,SCHEMA GAP — requires Phase 3/4 decision,do not encode as a price feature,Provider response format required.
+project_phase,REQUIRED when provider splits phases,,"",keep phase token,SCHEMA GAP — requires Phase 3/4 decision,not a feature,Training CSV column project_phase. Do not drop from the match key.
+physical_development_id,OPTIONAL,,"",provider or derived group id,SCHEMA GAP — requires Phase 3/4 decision,grouping key not a feature,Present on the verified price CSV only.
+project_latitude,OPTIONAL,,"",WGS84 decimal degrees,SCHEMA GAP — requires Phase 3/4 decision,not a price or demand feature,Do not write onto micro_markets.latitude.
+project_longitude,OPTIONAL,,"",WGS84 decimal degrees,SCHEMA GAP — requires Phase 3/4 decision,not a price or demand feature,Bengaluru box is lat 12.5-13.6 lon 77.1-78.1.
+rera_number,OPTIONAL,,"",exact string match,SCHEMA GAP — requires Phase 3/4 decision,identity only not a feature,Preferred duplicate key. rera_registered cannot store it.
+rera_registered_flag,OPTIONAL,rera_registered,projects,1 or 0 only when stated,maps to existing column,not a feature,Column default is 1. Missing must stay NULL conceptually and must not use the default.
+launch_date,OPTIONAL,launch_date,projects,ISO YYYY-MM-DD,maps to existing column,not a live feature,Actual launch only. Training CSV has launch_date.
+expected_launch_date,OPTIONAL,,"",ISO date,SCHEMA GAP — requires Phase 3/4 decision,not a feature,Do not reuse launch_date for a proposed project.
+completion_date,OPTIONAL,,"",ISO date,SCHEMA GAP — requires Phase 3/4 decision,not a feature,Provider response format required.
+total_sale_price,OPTIONAL,,"",do not write into price_per_sqft,SCHEMA GAP — requires Phase 3/4 decision,not a feature,May derive INR/sq.ft only when area and both units are explicit.
+rental_price_total,OPTIONAL,,"",never write into price_per_sqft,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,Requirement includes rent. Current models do not read it.
+rental_price_per_sqft,OPTIONAL,,"",INR per sq.ft if unit explicit,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,Prefer this over total rent when both exist.
+project_absorbed_units,OPTIONAL,absorbed_units,projects,integer,maps to existing column,not a direct model feature,Do not default missing to 0.
+project_available_units,OPTIONAL,available_units,projects,integer,maps to existing column,not a direct model feature,Derive only when launched and absorbed were both supplied.
+project_percentage_sold,OPTIONAL,percentage_sold,projects,percent as provided,maps to existing column,not a model feature,Competition displays it. Do not invent from missing parts.
+average_unit_size_sqft,OPTIONAL,,"",sq.ft convert sq.m only if explicit,SCHEMA GAP — requires Phase 3/4 decision,potential future training feature,Live inference estimates size from BHK. Do not store that estimate.
+corridor_launched_units,REQUIRED for an explicit market refresh,launched_units,micro_markets,integer,maps to existing column,demand inference total_available,Do not overwrite the research snapshot unless a later phase allows it. Never write 0 for missing.
+corridor_absorbed_units,REQUIRED for an explicit market refresh,absorbed_units,micro_markets,integer,maps to existing column,demand inference input,Missing must stay missing. Demand inference fails closed on null.
+corridor_available_units,REQUIRED for an explicit market refresh,available_units,micro_markets,integer,maps to existing column,demand inference unsold_units,Same refresh rule.
+corridor_sale_price_per_sqft,REQUIRED if provider sends a corridor price,average_price_per_sqft,micro_markets,INR per sq.ft,maps to existing column,not a demand-model feature,Same price-type rules as projects.
+corridor_percentage_sold,OPTIONAL,average_percentage_sold,micro_markets,percent as provided,maps to existing column,displayed not a model feature,Demand code can see it. It is not in feature_cols.
+corridor_project_count,OPTIONAL,project_count,micro_markets,integer,maps to existing column,not a model feature,Do not default missing to 0.
+zone,OPTIONAL,zone,micro_markets,existing zone vocabulary only,maps to existing column,do not feed raw text into the price vector,Price v2 uses its own zone map from the canonical name.
+segment_bias,OPTIONAL,segment_bias,micro_markets,store label only,maps to existing column,not a model feature,Not the same as projects.property_segment.
+launch_activity_signal,OPTIONAL,launch_activity_signal,micro_markets,store label only,maps to existing column,not a model feature,Do not convert to a score.
+absorption_signal,OPTIONAL,absorption_signal,micro_markets,store label only,maps to existing column,not a model feature,Do not convert to a score.
+city_launch_and_inventory_snapshot,OPTIONAL,total_launches_2025 and sibling period columns,cities,period must match the column name,maps to existing columns,not a model feature,Do not overwrite the 2025 research snapshot by default. A new period is a schema gap.
+source_system,REQUIRED to retain,,"",external_real_estate_api,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,projects has no source column.
+source_api,REQUIRED to retain,,"",provider name unknown,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,Do not invent a provider.
+source_record_id,REQUIRED to retain,,"",provider id,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,Provider response format required.
+fetched_at,REQUIRED to retain,,"",ingestion timestamp,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,
+source_updated_at,OPTIONAL,,"",provider timestamp,SCHEMA GAP — requires Phase 3/4 decision,do not enter ML,Provider response format required.
+cities_source,NOT CURRENTLY NEEDED as an API write,source,cities,leave the research citation,existing column do not replace,not a feature,Current value is the C&W / KF / JLL citation.
+micro_markets_source,NOT CURRENTLY NEEDED as an API write,source,micro_markets,leave the research citation,existing column do not replace,not a feature,Current value comes from CSV source_basis.
+corridor_centroid,NOT CURRENTLY NEEDED as an API write,latitude,micro_markets,do not replace,existing validated coordinates,not a price feature,longitude follows the same rule.
+amenities_from_property_api,NOT CURRENTLY NEEDED,,,none,do not ingest,Overpass remains the amenity source,infrastructure path stays separate.
+buyer_demographics,NOT CURRENTLY NEEDED,,,none,do not ingest,buyer model is location-agnostic,buyer_profiles.source is a workbook name.
+flood_utility_scores,NOT CURRENTLY NEEDED,flood_risk_score,infrastructure,do not fill from listings,existing columns are not API targets,not a feature,Agents already treat unmeasured flood data as unassessed.
+regulatory_corridor_rates,NOT CURRENTLY NEEDED,rera_registration_rate,regulatory_records,do not write project RERA here,existing corridor research row,not a feature,Project RERA number is a different fact.

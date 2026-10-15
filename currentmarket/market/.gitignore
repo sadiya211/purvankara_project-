@@ -4,3 +4,11 @@ venv/
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# Local secrets, databases, and Python caches
+.env
+.env.*
+!.env.example
+*.db
+__pycache__/
+.pytest_cache/
